@@ -13,6 +13,27 @@ interface CrystalProps {
   onClick: () => void;
 }
 
+function createRockyCrystalGeometry(): THREE.BufferGeometry {
+  const geo = new THREE.IcosahedronGeometry(1, 1);
+  const pos = geo.attributes.position as THREE.BufferAttribute;
+  const noise = (x: number, y: number, z: number) => {
+    return (
+      Math.sin(x * 2.3 + y * 1.7) * 0.08 +
+      Math.sin(y * 3.1 + z * 2.0) * 0.06 +
+      Math.sin(z * 1.9 + x * 2.8) * 0.07
+    );
+  };
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    const d = noise(x, y, z);
+    pos.setXYZ(i, x * (1 + d), y * (1 + d) * 1.4, z * (1 + d));
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+
 export default function Crystal({
   fund,
   position,
@@ -27,7 +48,8 @@ export default function Crystal({
   const color = ASSET_CLASS_COLORS[fund.assetClass];
   const baseScale = getCrystalScale(fund.aum);
 
-  // Unique rotation speed per fund based on id hash
+  const geometry = useMemo(() => createRockyCrystalGeometry(), []);
+
   const rotationSpeed = useMemo(() => {
     let hash = 0;
     for (let i = 0; i < fund.id.length; i++) {
@@ -48,10 +70,8 @@ export default function Crystal({
 
   useFrame((state) => {
     if (!meshRef.current || !materialRef.current) return;
-
     const t = state.clock.elapsedTime;
 
-    // Gentle rotation
     meshRef.current.rotation.y = t * rotationSpeed * 60 + rotationOffset * 0.01;
     meshRef.current.rotation.x = Math.sin(t * 0.3 + rotationOffset) * 0.15;
 
@@ -60,14 +80,19 @@ export default function Crystal({
       position[1] + Math.sin(t * 0.8 + rotationOffset) * 0.12;
 
     // Scale animation
-    const targetScale = hovered ? baseScale * 1.1 : isSelected ? baseScale * 1.05 : baseScale;
+    const targetScale = hovered
+      ? baseScale * 1.1
+      : isSelected
+      ? baseScale * 1.05
+      : baseScale;
     const currentScale = meshRef.current.scale.x;
     const newScale = currentScale + (targetScale - currentScale) * 0.1;
-    meshRef.current.scale.set(newScale, newScale * 2.2, newScale);
+    meshRef.current.scale.set(newScale, newScale, newScale);
 
     // Opacity
-    const targetOpacity = isFiltered ? 0.18 : 1;
-    materialRef.current.opacity += (targetOpacity - materialRef.current.opacity) * 0.08;
+    const targetOpacity = isFiltered ? 0.15 : 1;
+    materialRef.current.opacity +=
+      (targetOpacity - materialRef.current.opacity) * 0.08;
 
     // Emissive intensity
     const targetEmissive = isSelected ? 0.7 : hovered ? 0.5 : 0.25;
@@ -79,7 +104,8 @@ export default function Crystal({
     <mesh
       ref={meshRef}
       position={position}
-      scale={[baseScale, baseScale * 2.2, baseScale]}
+      scale={[baseScale, baseScale, baseScale]}
+      geometry={geometry}
       onClick={(e) => {
         e.stopPropagation();
         onClick();
@@ -94,14 +120,13 @@ export default function Crystal({
         document.body.style.cursor = "default";
       }}
     >
-      <octahedronGeometry args={[0.5, 0]} />
       <meshStandardMaterial
         ref={materialRef}
         color={color}
         emissive={color}
         emissiveIntensity={0.25}
-        roughness={0.1}
-        metalness={0.8}
+        roughness={0.35}
+        metalness={0.55}
         transparent
         opacity={1}
       />
