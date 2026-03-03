@@ -6,6 +6,7 @@ import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import Crystal from "./Crystal";
 import NodeMarker from "./NodeMarker";
+import FloatingIsland from "./FloatingIsland";
 import ConnectionLine from "./ConnectionLine";
 import ParticleField from "./ParticleField";
 import { Fund, FilterState, ASSET_CLASS_COLORS } from "@/types/fund";
@@ -103,6 +104,17 @@ function SceneContent({ funds, selectedFund, filters, onSelectFund }: SceneProps
     const seen = new Set<string>();
     funds.forEach((f) => f.chains.forEach((c) => seen.add(c)));
     return Array.from(seen);
+  }, [funds]);
+
+  // Per-chain AUM totals
+  const chainAUM = useMemo<Record<string, number>>(() => {
+    const totals: Record<string, number> = {};
+    funds.forEach((fund) => {
+      fund.chains.forEach((chain) => {
+        totals[chain] = (totals[chain] || 0) + fund.aum;
+      });
+    });
+    return totals;
   }, [funds]);
 
   // Circle positions for each plane
@@ -229,15 +241,16 @@ function SceneContent({ funds, selectedFund, filters, onSelectFund }: SceneProps
         );
       })}
 
-      {/* ── Chain nodes ───────────────────────────────────────────────────── */}
-      {chains.map((name) => {
+      {/* ── Chain islands ─────────────────────────────────────────────────── */}
+      {chains.map((name, i) => {
         const p = chainPositions[name];
         return (
-          <NodeMarker
+          <FloatingIsland
             key={`chain-${name}`}
             position={[p.x, p.y, p.z]}
-            name={name}
-            color={COLOR_CHAIN}
+            chainName={name}
+            chainAUM={chainAUM[name] || 0}
+            index={i}
           />
         );
       })}

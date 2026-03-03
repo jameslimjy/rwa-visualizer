@@ -8,11 +8,11 @@
     "files": []
   },
   "app/page.tsx -> @/components/Scene": {
-    "id": 4796,
+    "id": 7419,
     "files": [
       "static/chunks/b536a0f1.c4781b588fc81089.js",
       "static/chunks/161.69c109c8b4046ba2.js",
-      "static/chunks/796.235d21e787d62af2.js"
+      "static/chunks/419.549627485b26d404.js"
     ]
   }
 }
