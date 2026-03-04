@@ -1,13 +1,14 @@
 "use client";
 
-import { Suspense, useMemo } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Suspense, useMemo, useRef } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
+import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 import Crystal from "./Crystal";
 import NodeMarker from "./NodeMarker";
 import FloatingIsland from "./FloatingIsland";
-import ConnectionLine from "./ConnectionLine";
+import { AnimatedBeam } from "./AnimatedBeam";
 import ParticleField from "./ParticleField";
 import { Fund, FilterState, ASSET_CLASS_COLORS } from "@/types/fund";
 
@@ -69,6 +70,30 @@ function isFundFiltered(fund: Fund, filters: FilterState): boolean {
   )
     return true;
   return false;
+}
+
+// ── Sweeping spotlight ────────────────────────────────────────────────────────
+function SpotlightSweep() {
+  const lightRef = useRef<THREE.SpotLight>(null);
+  useFrame((state) => {
+    if (lightRef.current) {
+      lightRef.current.position.x =
+        Math.sin(state.clock.elapsedTime * 0.2) * 20;
+      lightRef.current.position.z =
+        Math.cos(state.clock.elapsedTime * 0.2) * 20;
+    }
+  });
+  return (
+    <spotLight
+      ref={lightRef}
+      position={[20, 20, 20]}
+      color="#ffffff"
+      intensity={1.5}
+      angle={0.3}
+      penumbra={1}
+      distance={60}
+    />
+  );
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -148,11 +173,10 @@ function SceneContent({ funds, selectedFund, filters, onSelectFund }: SceneProps
       const idx = group.indexOf(fund);
       const total = group.length;
 
-      // Perpendicular fan spread for multiple funds from the same issuer
       const fanOffset = total > 1 ? (idx / (total - 1)) * 1.6 - 0.8 : 0;
       const perpAngle = issuerAngle + Math.PI / 2;
 
-      const baseRadius = R_ISSUER * 0.6; // 4.8 — midway between center and issuer
+      const baseRadius = R_ISSUER * 0.6;
       const cx =
         Math.cos(issuerAngle) * baseRadius +
         Math.cos(perpAngle) * fanOffset;
@@ -188,30 +212,26 @@ function SceneContent({ funds, selectedFund, filters, onSelectFund }: SceneProps
 
   return (
     <>
-      <color attach="background" args={["#000000"]} />
-      {/* Subtle exponential fog */}
-      <fogExp2 attach="fog" args={["#000000", 0.018]} />
+      <color attach="background" args={["#00010a"]} />
+      {/* Atmospheric fog */}
+      <fog attach="fog" args={["#00010a", 30, 100]} />
 
-      {/* Ambient + per-plane point lights */}
-      <ambientLight intensity={0.3} />
-      <pointLight
-        position={[0, Y_ISSUER, 0]}
-        intensity={3}
-        color={COLOR_ISSUER}
-        distance={22}
-      />
-      <pointLight
-        position={[0, Y_PROVIDER, 0]}
-        intensity={3}
-        color={COLOR_PROVIDER}
-        distance={22}
-      />
-      <pointLight
-        position={[0, Y_CHAIN, 0]}
-        intensity={3}
-        color={COLOR_CHAIN}
-        distance={22}
-      />
+      {/* Background sky sphere */}
+      <mesh scale={[-120, -120, -120]}>
+        <sphereGeometry args={[1, 32, 32]} />
+        <meshBasicMaterial color="#00010a" side={THREE.BackSide} />
+      </mesh>
+
+      {/* ── Dramatic lighting ──────────────────────────────────────────────── */}
+      <ambientLight intensity={0.15} />
+      {/* Deep blue from below */}
+      <pointLight position={[0, -5, 0]} color="#1e40af" intensity={3} distance={25} />
+      {/* Purple from mid */}
+      <pointLight position={[0, 7, 0]} color="#7c3aed" intensity={2} distance={20} />
+      {/* Green from top — chain plane */}
+      <pointLight position={[0, 18, 0]} color="#065f46" intensity={3} distance={25} />
+      {/* Sweeping spotlight */}
+      <SpotlightSweep />
 
       <ParticleField />
 
@@ -255,9 +275,9 @@ function SceneContent({ funds, selectedFund, filters, onSelectFund }: SceneProps
         );
       })}
 
-      {/* ── Connection lines ──────────────────────────────────────────────── */}
+      {/* ── Animated particle beams ───────────────────────────────────────── */}
       {connections.map((conn, i) => (
-        <ConnectionLine
+        <AnimatedBeam
           key={i}
           start={conn.start}
           end={conn.end}
@@ -292,6 +312,17 @@ function SceneContent({ funds, selectedFund, filters, onSelectFund }: SceneProps
         enableDamping
         dampingFactor={0.05}
       />
+
+      {/* ── Post-processing ───────────────────────────────────────────────── */}
+      <EffectComposer>
+        <Bloom
+          intensity={1.5}
+          luminanceThreshold={0.2}
+          luminanceSmoothing={0.9}
+          mipmapBlur
+        />
+        <Vignette eskil={false} offset={0.3} darkness={0.6} />
+      </EffectComposer>
     </>
   );
 }
@@ -302,7 +333,7 @@ export default function Scene(props: SceneProps) {
     <Canvas
       camera={{ position: [15, 10, 15], fov: 60 }}
       gl={{ antialias: true, alpha: false }}
-      style={{ background: "#000000" }}
+      style={{ background: "#00010a" }}
     >
       <Suspense fallback={null}>
         <SceneContent {...props} />

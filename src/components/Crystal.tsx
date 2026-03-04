@@ -42,7 +42,7 @@ export default function Crystal({
   onClick,
 }: CrystalProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const materialRef = useRef<THREE.MeshStandardMaterial>(null);
+  const materialRef = useRef<THREE.MeshPhysicalMaterial>(null);
   const [hovered, setHovered] = useState(false);
 
   const color = ASSET_CLASS_COLORS[fund.assetClass];
@@ -90,12 +90,12 @@ export default function Crystal({
     meshRef.current.scale.set(newScale, newScale, newScale);
 
     // Opacity
-    const targetOpacity = isFiltered ? 0.15 : 1;
+    const targetOpacity = isFiltered ? 0.15 : 0.92;
     materialRef.current.opacity +=
       (targetOpacity - materialRef.current.opacity) * 0.08;
 
-    // Emissive intensity
-    const targetEmissive = isSelected ? 0.7 : hovered ? 0.5 : 0.25;
+    // Emissive intensity — boosted for bloom
+    const targetEmissive = isSelected ? 1.0 : hovered ? 0.8 : 0.6;
     materialRef.current.emissiveIntensity +=
       (targetEmissive - materialRef.current.emissiveIntensity) * 0.1;
   });
@@ -120,16 +120,23 @@ export default function Crystal({
         document.body.style.cursor = "default";
       }}
     >
-      <meshStandardMaterial
+      <meshPhysicalMaterial
         ref={materialRef}
         color={color}
         emissive={color}
-        emissiveIntensity={0.25}
-        roughness={0.35}
-        metalness={0.55}
+        emissiveIntensity={0.6}
+        roughness={0.05}
+        metalness={0.1}
+        transmission={0.4}
+        thickness={1.5}
+        ior={2.1}
         transparent
-        opacity={1}
+        opacity={0.92}
       />
+      {/* Wireframe overlay — slightly larger, same geometry */}
+      <mesh geometry={geometry} scale={1.02}>
+        <meshBasicMaterial color={color} wireframe transparent opacity={0.08} />
+      </mesh>
     </mesh>
   );
 }

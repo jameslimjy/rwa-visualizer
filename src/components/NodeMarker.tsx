@@ -16,7 +16,7 @@ export default function NodeMarker({ position, name, color }: NodeMarkerProps) {
         <meshStandardMaterial
           color={color}
           emissive={color}
-          emissiveIntensity={0.5}
+          emissiveIntensity={1.2}
         />
       </mesh>
       <Html center position={[0, 0.38, 0]} style={{ pointerEvents: "none" }}>
