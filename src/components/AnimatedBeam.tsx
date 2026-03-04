@@ -22,63 +22,65 @@ export function AnimatedBeam({
   const pointsRef = useRef<THREE.Points>(null);
   const timeRef = useRef(Math.random());
 
-  const { positions, offsets } = useMemo(() => {
-    const positions = new Float32Array(particleCount * 3);
-    const offsets = Array.from(
-      { length: particleCount },
-      (_, i) => i / particleCount
-    );
-    return { positions, offsets };
-  }, [particleCount]);
+  // Static line geometry — declarative
+  const linePositions = useMemo(() => {
+    return new Float32Array([start.x, start.y, start.z, end.x, end.y, end.z]);
+  }, [start.x, start.y, start.z, end.x, end.y, end.z]);
 
-  const lineCurve = useMemo(
-    () => new THREE.LineCurve3(start, end),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [start, end]
+  // Particle positions buffer
+  const particlePositions = useMemo(
+    () => new Float32Array(particleCount * 3),
+    [particleCount]
   );
 
-  const staticLine = useMemo(() => {
-    const geo = new THREE.BufferGeometry().setFromPoints([start, end]);
-    const mat = new THREE.LineBasicMaterial({
-      color: new THREE.Color(color),
-      transparent: true,
-      opacity: 0.15,
-    });
-    return new THREE.Line(geo, mat);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [start.x, start.y, start.z, end.x, end.y, end.z, color]);
+  const offsets = useMemo(
+    () => Array.from({ length: particleCount }, (_, i) => i / particleCount),
+    [particleCount]
+  );
 
-  const geo = useMemo(() => {
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    return g;
-  }, [positions]);
+  const lineCurve = useMemo(
+    () => new THREE.LineCurve3(start.clone(), end.clone()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [start.x, start.y, start.z, end.x, end.y, end.z]
+  );
 
   useFrame((_, delta) => {
+    if (!pointsRef.current) return;
     timeRef.current += delta * speed;
-    if (pointsRef.current) {
-      const pos = pointsRef.current.geometry.attributes
-        .position as THREE.BufferAttribute;
-      offsets.forEach((offset, i) => {
-        const t = ((timeRef.current + offset) % 1 + 1) % 1;
-        const point = lineCurve.getPoint(t);
-        pos.setXYZ(i, point.x, point.y, point.z);
-      });
-      pos.needsUpdate = true;
-    }
+    const posAttr = pointsRef.current.geometry.attributes.position as THREE.BufferAttribute;
+    offsets.forEach((offset, i) => {
+      const t = ((timeRef.current + offset) % 1 + 1) % 1;
+      const pt = lineCurve.getPoint(t);
+      posAttr.setXYZ(i, pt.x, pt.y, pt.z);
+    });
+    posAttr.needsUpdate = true;
   });
+
+  const particleGeo = useMemo(() => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(particlePositions, 3));
+    return g;
+  }, [particlePositions]);
 
   return (
     <group>
-      {/* Static dim base line */}
-      <primitive object={staticLine} />
+      {/* Static dim base line — fully declarative */}
+      <line>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            args={[linePositions, 3]}
+          />
+        </bufferGeometry>
+        <lineBasicMaterial color={color} transparent opacity={0.18} />
+      </line>
       {/* Traveling particles */}
-      <points ref={pointsRef} geometry={geo}>
+      <points ref={pointsRef} geometry={particleGeo}>
         <pointsMaterial
           color={color}
-          size={0.06}
+          size={0.07}
           transparent
-          opacity={0.9}
+          opacity={0.85}
           sizeAttenuation
         />
       </points>

@@ -1,9 +1,8 @@
 "use client";
 
-import { Suspense, useMemo, useRef, useState, useEffect } from "react";
+import { Suspense, useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 import Crystal from "./Crystal";
 import NodeMarker from "./NodeMarker";
@@ -112,8 +111,6 @@ interface Connection {
 
 // ── Main 3D content ───────────────────────────────────────────────────────────
 function SceneContent({ funds, selectedFund, filters, onSelectFund }: SceneProps) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
   // Extract unique names preserving insertion order
   const issuers = useMemo(() => {
     const seen = new Set<string>();
@@ -282,14 +279,11 @@ function SceneContent({ funds, selectedFund, filters, onSelectFund }: SceneProps
       })}
 
       {/* ── Animated particle beams ───────────────────────────────────────── */}
-      {connections.map((conn, i) => (
-        <AnimatedBeam
-          key={i}
-          start={conn.start}
-          end={conn.end}
-          color={conn.color}
-        />
-      ))}
+      {connections.map((conn, i) =>
+        conn.start && conn.end ? (
+          <AnimatedBeam key={i} start={conn.start} end={conn.end} color={conn.color} />
+        ) : null
+      )}
 
       {/* ── Fund crystals ─────────────────────────────────────────────────── */}
       {funds.map((fund, i) => {
@@ -318,19 +312,6 @@ function SceneContent({ funds, selectedFund, filters, onSelectFund }: SceneProps
         enableDamping
         dampingFactor={0.05}
       />
-
-      {/* ── Post-processing ───────────────────────────────────────────────── */}
-      {mounted && (
-        <EffectComposer>
-          <Bloom
-            intensity={1.5}
-            luminanceThreshold={0.2}
-            luminanceSmoothing={0.9}
-            mipmapBlur
-          />
-          <Vignette eskil={false} offset={0.3} darkness={0.6} />
-        </EffectComposer>
-      )}
     </>
   );
 }

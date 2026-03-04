@@ -124,7 +124,7 @@ export default function Crystal({
         ref={materialRef}
         color={color}
         emissive={color}
-        emissiveIntensity={0.6}
+        emissiveIntensity={1.2}
         roughness={0.08}
         metalness={0.15}
         transparent

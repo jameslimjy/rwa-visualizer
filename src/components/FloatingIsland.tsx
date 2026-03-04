@@ -125,7 +125,7 @@ export default function FloatingIsland({
             roughness={0.9}
             metalness={0.05}
             emissive="#34d399"
-            emissiveIntensity={0.12}
+            emissiveIntensity={0.3}
           />
         </mesh>
 
