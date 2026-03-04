@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo, useRef } from "react";
+import { Suspense, useMemo, useRef, useState, useEffect } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
@@ -112,6 +112,8 @@ interface Connection {
 
 // ── Main 3D content ───────────────────────────────────────────────────────────
 function SceneContent({ funds, selectedFund, filters, onSelectFund }: SceneProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   // Extract unique names preserving insertion order
   const issuers = useMemo(() => {
     const seen = new Set<string>();
@@ -314,15 +316,17 @@ function SceneContent({ funds, selectedFund, filters, onSelectFund }: SceneProps
       />
 
       {/* ── Post-processing ───────────────────────────────────────────────── */}
-      <EffectComposer>
-        <Bloom
-          intensity={1.5}
-          luminanceThreshold={0.2}
-          luminanceSmoothing={0.9}
-          mipmapBlur
-        />
-        <Vignette eskil={false} offset={0.3} darkness={0.6} />
-      </EffectComposer>
+      {mounted && (
+        <EffectComposer>
+          <Bloom
+            intensity={1.5}
+            luminanceThreshold={0.2}
+            luminanceSmoothing={0.9}
+            mipmapBlur
+          />
+          <Vignette eskil={false} offset={0.3} darkness={0.6} />
+        </EffectComposer>
+      )}
     </>
   );
 }
@@ -332,8 +336,16 @@ export default function Scene(props: SceneProps) {
   return (
     <Canvas
       camera={{ position: [15, 10, 15], fov: 60 }}
-      gl={{ antialias: true, alpha: false }}
-      style={{ background: "#00010a" }}
+      gl={{
+        antialias: true,
+        alpha: false,
+        powerPreference: 'high-performance',
+        toneMapping: THREE.ACESFilmicToneMapping,
+        toneMappingExposure: 1.0,
+      }}
+      onCreated={({ gl }) => {
+        gl.setClearColor('#00010a', 1)
+      }}
     >
       <Suspense fallback={null}>
         <SceneContent {...props} />

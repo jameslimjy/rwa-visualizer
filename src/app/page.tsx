@@ -7,6 +7,7 @@ import FilterPanel from "@/components/FilterPanel";
 import InfoPanel from "@/components/InfoPanel";
 import { Fund, FilterState } from "@/types/fund";
 import fundsData from "@/data/funds.json";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Dynamically import the 3D scene to avoid SSR issues with Three.js
 const Scene = dynamic(() => import("@/components/Scene"), {
@@ -52,12 +53,14 @@ export default function Home() {
     <main className="relative w-screen h-screen overflow-hidden bg-black">
       {/* 3D Canvas - fills entire viewport */}
       <div className="absolute inset-0">
-        <Scene
-          funds={funds}
-          selectedFund={selectedFund}
-          filters={filters}
-          onSelectFund={handleSelectFund}
-        />
+        <ErrorBoundary>
+          <Scene
+            funds={funds}
+            selectedFund={selectedFund}
+            filters={filters}
+            onSelectFund={handleSelectFund}
+          />
+        </ErrorBoundary>
       </div>
 
       {/* UI Overlays */}

@@ -42,7 +42,7 @@ export default function Crystal({
   onClick,
 }: CrystalProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const materialRef = useRef<THREE.MeshPhysicalMaterial>(null);
+  const materialRef = useRef<THREE.MeshStandardMaterial>(null);
   const [hovered, setHovered] = useState(false);
 
   const color = ASSET_CLASS_COLORS[fund.assetClass];
@@ -120,18 +120,15 @@ export default function Crystal({
         document.body.style.cursor = "default";
       }}
     >
-      <meshPhysicalMaterial
+      <meshStandardMaterial
         ref={materialRef}
         color={color}
         emissive={color}
         emissiveIntensity={0.6}
-        roughness={0.05}
-        metalness={0.1}
-        transmission={0.4}
-        thickness={1.5}
-        ior={2.1}
+        roughness={0.08}
+        metalness={0.15}
         transparent
-        opacity={0.92}
+        opacity={0.88}
       />
       {/* Wireframe overlay — slightly larger, same geometry */}
       <mesh geometry={geometry} scale={1.02}>
