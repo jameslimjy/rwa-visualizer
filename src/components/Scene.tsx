@@ -170,6 +170,7 @@ function SceneContent({ funds, selectedFund, filters, onSelectFund }: SceneProps
 
     return funds.map((fund) => {
       const issuerPos = issuerPositions[fund.issuer];
+      if (!issuerPos) return new THREE.Vector3(0, Y_CRYSTAL, 0);
       const issuerAngle = Math.atan2(issuerPos.z, issuerPos.x);
       const group = fundsByIssuer[fund.issuer];
       const idx = group.indexOf(fund);
@@ -197,6 +198,9 @@ function SceneContent({ funds, selectedFund, filters, onSelectFund }: SceneProps
       const issuerPos = issuerPositions[fund.issuer];
       const providerPos = providerPositions[fund.tokenizationProvider];
       const color = ASSET_CLASS_COLORS[fund.assetClass];
+
+      // Skip if any required position is missing
+      if (!crystal || !issuerPos || !providerPos) return [];
 
       const lines: Connection[] = [
         { start: issuerPos, end: crystal, color },
