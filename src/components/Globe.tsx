@@ -6,10 +6,9 @@ import * as THREE from "three"
 import { Html } from "@react-three/drei"
 import { GLOBE_RADIUS, CHAIN_DATA, chainCentroids, getChainScale } from "./globeConstants"
 
-// three.js repo textures — reliable CDN, show real continents
-const EARTH_TEXTURE_URL = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_atmos_2048.jpg'
-const EARTH_SPECULAR_URL = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_specular_2048.jpg'
-const EARTH_NORMAL_URL = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_normal_2048.jpg'
+// Local textures in /public — no CORS issues
+const EARTH_TEXTURE_URL = '/earth-color.jpg'
+const EARTH_WATER_URL = '/earth-water.png'
 
 function ChainMarker({ position, color, name, tvl }: { position: THREE.Vector3; color: string; name: string; tvl: number }) {
   const ringRef = useRef<THREE.Mesh>(null)
@@ -45,31 +44,28 @@ function ChainMarker({ position, color, name, tvl }: { position: THREE.Vector3; 
 }
 
 function GlobeInner({ chainTVL }: { chainTVL: Record<string, number> }) {
-  const [colorMap, specularMap, normalMap] = useLoader(THREE.TextureLoader, [
+  const [colorMap, waterMask] = useLoader(THREE.TextureLoader, [
     EARTH_TEXTURE_URL,
-    EARTH_SPECULAR_URL,
-    EARTH_NORMAL_URL,
+    EARTH_WATER_URL,
   ])
 
   return (
     <>
-      {/* Main Earth sphere with real land/ocean texture */}
+      {/* Main Earth sphere — fully opaque, blue-marble texture */}
       <mesh>
         <sphereGeometry args={[GLOBE_RADIUS, 64, 64]} />
         <meshPhongMaterial
           map={colorMap}
-          specularMap={specularMap}
-          normalMap={normalMap}
-          normalScale={new THREE.Vector2(0.05, 0.05)}
-          specular={new THREE.Color(0x333333)}
-          shininess={15}
+          specularMap={waterMask}
+          specular={new THREE.Color(0x226699)}
+          shininess={40}
         />
       </mesh>
 
-      {/* Atmosphere glow */}
-      <mesh scale={1.02}>
+      {/* Atmosphere glow — outer ring only (BackSide) */}
+      <mesh scale={1.025}>
         <sphereGeometry args={[GLOBE_RADIUS, 32, 32]} />
-        <meshStandardMaterial color="#4488ff" transparent opacity={0.05} side={THREE.BackSide} />
+        <meshStandardMaterial color="#3366cc" transparent opacity={0.12} side={THREE.BackSide} depthWrite={false} />
       </mesh>
 
       {/* Chain markers at real geographic positions */}
@@ -97,10 +93,10 @@ interface GlobeProps {
 export default function Globe({ chainTVL = {} }: GlobeProps) {
   return (
     <Suspense fallback={
-      // Dark sphere shown while textures load
+      // Blue-ish sphere shown while textures load
       <mesh>
         <sphereGeometry args={[GLOBE_RADIUS, 32, 32]} />
-        <meshStandardMaterial color="#0a1628" roughness={0.8} />
+        <meshStandardMaterial color="#0d2044" roughness={0.8} />
       </mesh>
     }>
       <GlobeInner chainTVL={chainTVL} />
