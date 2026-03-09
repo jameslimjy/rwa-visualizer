@@ -16,6 +16,12 @@ export const CHAIN_DATA: Record<string, { color: string; aum: number }> = {
   'Tron':      { color: '#FF060A', aum: 60_000_000 },
 }
 
+export function getChainScale(tvl: number): number {
+  if (!tvl || tvl <= 0) return 0.5
+  return Math.log10(tvl / 1_000_000) * 0.15 + 0.4
+}
+
+// Keep fibonacciPoint for satellite orbit placement
 export function fibonacciPoint(i: number, n: number, radius: number): THREE.Vector3 {
   const golden = (1 + Math.sqrt(5)) / 2
   const theta = Math.acos(1 - (2 * i) / n)
@@ -27,8 +33,33 @@ export function fibonacciPoint(i: number, n: number, radius: number): THREE.Vect
   )
 }
 
-const chainNames = Object.keys(CHAIN_DATA)
+// Convert lat/lng to 3D position on sphere
+export function latLngToVector3(lat: number, lng: number, radius: number): THREE.Vector3 {
+  const phi = (90 - lat) * (Math.PI / 180)
+  const theta = (lng + 180) * (Math.PI / 180)
+  return new THREE.Vector3(
+    -radius * Math.sin(phi) * Math.cos(theta),
+    radius * Math.cos(phi),
+    radius * Math.sin(phi) * Math.sin(theta)
+  )
+}
+
+// Real geographic locations for each blockchain (HQ/founding team location)
+export const CHAIN_LOCATIONS: Record<string, { lat: number; lng: number }> = {
+  'Ethereum':  { lat: 47.1,   lng: 8.5    }, // Zug, Switzerland (Ethereum Foundation)
+  'Polygon':   { lat: 12.97,  lng: 77.59  }, // Bangalore, India
+  'Avalanche': { lat: 40.71,  lng: -74.01 }, // New York, USA (Ava Labs)
+  'Solana':    { lat: 37.77,  lng: -122.42 }, // San Francisco, USA
+  'Arbitrum':  { lat: 41.88,  lng: -87.63 }, // Chicago, USA (Offchain Labs)
+  'Optimism':  { lat: 37.77,  lng: -122.42 }, // San Francisco, USA
+  'Stellar':   { lat: 37.77,  lng: -122.42 }, // San Francisco, USA (SDF)
+  'Base':      { lat: 37.77,  lng: -122.42 }, // San Francisco, USA (Coinbase)
+  'Aptos':     { lat: 37.33,  lng: -121.89 }, // Santa Clara, USA
+  'Hedera':    { lat: 32.78,  lng: -96.80  }, // Dallas, USA
+  'Tron':      { lat: 22.32,  lng: 114.17  }, // Hong Kong
+}
+
 export const chainCentroids: Record<string, THREE.Vector3> = {}
-chainNames.forEach((name, i) => {
-  chainCentroids[name] = fibonacciPoint(i, chainNames.length, GLOBE_RADIUS)
+Object.entries(CHAIN_LOCATIONS).forEach(([name, { lat, lng }]) => {
+  chainCentroids[name] = latLngToVector3(lat, lng, GLOBE_RADIUS)
 })

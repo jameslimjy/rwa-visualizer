@@ -44,11 +44,12 @@ function isFundFiltered(fund: Fund, filters: FilterState): boolean {
 interface SceneContentProps {
   funds: Fund[]
   filters: FilterState
+  chainTVL: Record<string, number>
   onSelectFund: (fund: Fund | null) => void
   onHoverFund: (data: { fund: Fund; chain: string } | null) => void
 }
 
-function SceneContent({ funds, filters, onSelectFund, onHoverFund }: SceneContentProps) {
+function SceneContent({ funds, filters, chainTVL, onSelectFund, onHoverFund }: SceneContentProps) {
   const uniqueIssuers = useMemo(() => {
     const seen = new Set<string>()
     funds.forEach(f => seen.add(f.issuer))
@@ -72,7 +73,7 @@ function SceneContent({ funds, filters, onSelectFund, onHoverFund }: SceneConten
       <pointLight position={[-5, -3, -5]} intensity={1.5} color="#220044" />
       <pointLight position={[0, 8, 0]} intensity={1} color="#ffffff" />
 
-      <Globe />
+      <Globe chainTVL={chainTVL} />
 
       {uniqueIssuers.map((issuer, i) => (
         <Satellite
@@ -121,11 +122,12 @@ interface SceneProps {
   funds: Fund[]
   selectedFund: Fund | null
   filters: FilterState
+  chainTVL: Record<string, number>
   onSelectFund: (fund: Fund | null) => void
   onHoverFund: (data: { fund: Fund; chain: string } | null) => void
 }
 
-export default function Scene({ funds, filters, onSelectFund, onHoverFund }: SceneProps) {
+export default function Scene({ funds, filters, chainTVL, onSelectFund, onHoverFund }: SceneProps) {
   return (
     <Canvas
       camera={{ position: [0, 0, 6], fov: 50 }}
@@ -136,6 +138,7 @@ export default function Scene({ funds, filters, onSelectFund, onHoverFund }: Sce
         <SceneContent
           funds={funds}
           filters={filters}
+          chainTVL={chainTVL}
           onSelectFund={onSelectFund}
           onHoverFund={onHoverFund}
         />

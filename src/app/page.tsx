@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
 import Header from "@/components/Header";
 import FilterPanel from "@/components/FilterPanel";
@@ -23,8 +23,6 @@ const Scene = dynamic(() => import("@/components/Scene"), {
   ),
 });
 
-const funds = fundsData as Fund[];
-
 const initialFilters: FilterState = {
   assetClasses: new Set(),
   chains: new Set(),
@@ -32,10 +30,30 @@ const initialFilters: FilterState = {
 };
 
 export default function Home() {
+  const [funds, setFunds] = useState<Fund[]>(fundsData as Fund[]);
+  const [chainTVL, setChainTVL] = useState<Record<string, number>>({});
+  const [dataSource, setDataSource] = useState<string | null>(null);
   const [selectedFund, setSelectedFund] = useState<Fund | null>(null);
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [hoveredFund, setHoveredFund] = useState<{ fund: Fund; chain: string } | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    // Fetch live fund data
+    fetch('/api/funds')
+      .then(r => r.json())
+      .then(({ funds: liveFunds, fetchedAt }) => {
+        if (liveFunds) setFunds(liveFunds);
+        if (fetchedAt) setDataSource('rwa.xyz');
+      })
+      .catch(() => {});
+
+    // Fetch chain TVL
+    fetch('/api/chains')
+      .then(r => r.json())
+      .then(setChainTVL)
+      .catch(() => {});
+  }, []);
 
   const handleSelectFund = useCallback((fund: Fund | null) => {
     setSelectedFund(fund);
@@ -64,13 +82,14 @@ export default function Home() {
           funds={funds}
           selectedFund={selectedFund}
           filters={filters}
+          chainTVL={chainTVL}
           onSelectFund={handleSelectFund}
           onHoverFund={handleHoverFund}
         />
       </div>
 
       {/* UI Overlays */}
-      <Header funds={funds} />
+      <Header funds={funds} dataLoaded={!!dataSource} />
 
       <FilterPanel
         funds={funds}
@@ -121,6 +140,17 @@ export default function Home() {
           </p>
         </div>
       )}
+
+      {/* Data source indicator */}
+      <div style={{
+        position: 'fixed', bottom: 12, right: 12, fontSize: 10,
+        color: dataSource ? '#10b981' : '#6b7280', zIndex: 10,
+        display: 'flex', alignItems: 'center', gap: 4
+      }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%',
+          background: dataSource ? '#10b981' : '#6b7280', display: 'inline-block' }} />
+        {dataSource ? `Live data · rwa.xyz` : 'Static data'}
+      </div>
     </main>
   );
 }

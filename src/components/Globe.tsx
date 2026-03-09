@@ -1,114 +1,82 @@
 "use client"
 
-import { useMemo } from "react"
+import { useRef } from "react"
+import { useLoader, useFrame } from "@react-three/fiber"
 import * as THREE from "three"
 import { Html } from "@react-three/drei"
-import { GLOBE_RADIUS, CHAIN_DATA, chainCentroids } from "./globeConstants"
+import { GLOBE_RADIUS, CHAIN_DATA, chainCentroids, getChainScale } from "./globeConstants"
 
-function generateCountryDots(
-  centroid: THREE.Vector3,
-  dotCount: number,
-  spreadAngle: number,
-  radius: number
-): THREE.Vector3[] {
-  const dots: THREE.Vector3[] = []
-  const up = centroid.clone().normalize()
-  const perp1 = new THREE.Vector3(1, 0, 0)
-  if (Math.abs(up.dot(perp1)) > 0.9) perp1.set(0, 1, 0)
-  const tangent1 = up.clone().cross(perp1).normalize()
-  const tangent2 = up.clone().cross(tangent1).normalize()
-
-  // Deterministic pseudo-random (no Math.random so clusters are stable)
-  const rng = (seed: number) => {
-    const x = Math.sin(seed) * 43758.5453123
-    return x - Math.floor(x)
-  }
-
-  for (let i = 0; i < dotCount; i++) {
-    const r = Math.sqrt(rng(i * 2.3 + dotCount)) * spreadAngle
-    const angle = rng(i * 5.7 + dotCount * 0.3) * Math.PI * 2
-    const offset = tangent1.clone()
-      .multiplyScalar(Math.sin(r) * Math.cos(angle))
-      .add(tangent2.clone().multiplyScalar(Math.sin(r) * Math.sin(angle)))
-    const dir = up.clone().add(offset).normalize()
-    dots.push(dir.multiplyScalar(radius * 1.001))
-  }
-  return dots
+function ChainMarker({ position, color, name, tvl }: { position: THREE.Vector3; color: string; name: string; tvl: number }) {
+  const ringRef = useRef<THREE.Mesh>(null)
+  const scale = getChainScale(tvl)
+  useFrame((state) => {
+    if (!ringRef.current) return
+    const pulse = 1 + Math.sin(state.clock.elapsedTime * 2) * 0.3
+    ringRef.current.scale.set(pulse, pulse, pulse)
+    // Always face outward from globe center
+    ringRef.current.lookAt(position.clone().multiplyScalar(2))
+  })
+  return (
+    <group position={[position.x, position.y, position.z]}>
+      {/* Pulsing ring */}
+      <mesh ref={ringRef} scale={scale}>
+        <ringGeometry args={[0.03, 0.05, 16]} />
+        <meshBasicMaterial color={color} transparent opacity={0.8} side={THREE.DoubleSide} />
+      </mesh>
+      {/* Center dot */}
+      <mesh scale={scale}>
+        <sphereGeometry args={[0.025, 8, 8]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.5} />
+      </mesh>
+      {/* Label */}
+      <Html position={[0, 0.12 * scale, 0]} center>
+        <div style={{ color, fontSize: '9px', fontWeight: 700, whiteSpace: 'nowrap',
+                      textShadow: '0 0 6px rgba(0,0,0,0.9)', pointerEvents: 'none' }}>
+          {name}
+        </div>
+      </Html>
+    </group>
+  )
 }
 
-export default function Globe() {
-  const { dotsGeo } = useMemo(() => {
-    const positions: number[] = []
-    const colors: number[] = []
+interface GlobeProps {
+  chainTVL?: Record<string, number>
+}
 
-    for (const [name, { color, aum }] of Object.entries(CHAIN_DATA)) {
-      const centroid = chainCentroids[name]
-      const dotCount = Math.floor(Math.log10(aum / 1_000_000) * 30 + 20)
-      const spreadAngle = 0.3 + Math.log10(aum / 10_000_000) * 0.08
-      const dots = generateCountryDots(centroid, dotCount, spreadAngle, GLOBE_RADIUS)
-      const c = new THREE.Color(color)
-      for (const dot of dots) {
-        positions.push(dot.x, dot.y, dot.z)
-        colors.push(c.r, c.g, c.b)
-      }
-    }
-
-    const geo = new THREE.BufferGeometry()
-    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3))
-    geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3))
-    return { dotsGeo: geo }
-  }, [])
+export default function Globe({ chainTVL = {} }: GlobeProps) {
+  const earthTexture = useLoader(THREE.TextureLoader, 'https://unpkg.com/three-globe/example/img/earth-dark.jpg')
+  const bumpMap = useLoader(THREE.TextureLoader, 'https://unpkg.com/three-globe/example/img/earth-topology.png')
 
   return (
     <group>
-      {/* Dark base sphere */}
+      {/* Earth sphere with real texture */}
       <mesh>
         <sphereGeometry args={[GLOBE_RADIUS, 64, 64]} />
-        <meshStandardMaterial color="#050a1a" roughness={0.8} metalness={0.1} />
-      </mesh>
-
-      {/* Atmosphere glow — slightly larger, additive blue */}
-      <mesh scale={1.04}>
-        <sphereGeometry args={[GLOBE_RADIUS, 32, 32]} />
         <meshStandardMaterial
-          color="#1a3a6e"
-          transparent
-          opacity={0.08}
-          side={THREE.BackSide}
+          map={earthTexture}
+          bumpMap={bumpMap}
+          bumpScale={0.05}
+          roughness={0.8}
+          metalness={0.1}
         />
       </mesh>
 
-      {/* Country dot clusters */}
-      <points geometry={dotsGeo}>
-        <pointsMaterial
-          size={0.018}
-          vertexColors
-          transparent
-          opacity={0.9}
-          sizeAttenuation
-        />
-      </points>
+      {/* Atmosphere glow */}
+      <mesh scale={1.02}>
+        <sphereGeometry args={[GLOBE_RADIUS, 32, 32]} />
+        <meshStandardMaterial color="#4488ff" transparent opacity={0.06} side={THREE.BackSide} />
+      </mesh>
 
-      {/* Chain name labels */}
-      {Object.entries(chainCentroids).map(([name, pos]) => {
-        const lp = pos.clone().normalize().multiplyScalar(GLOBE_RADIUS * 1.12)
-        return (
-          <Html key={name} position={[lp.x, lp.y, lp.z]} center>
-            <div
-              style={{
-                color: CHAIN_DATA[name].color,
-                fontSize: '10px',
-                fontWeight: 700,
-                textShadow: '0 0 6px currentColor',
-                pointerEvents: 'none',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {name}
-            </div>
-          </Html>
-        )
-      })}
+      {/* Chain markers at real geographic positions */}
+      {Object.entries(chainCentroids).map(([name, pos]) => (
+        <ChainMarker
+          key={name}
+          position={pos}
+          color={CHAIN_DATA[name].color}
+          name={name}
+          tvl={chainTVL[name] ?? CHAIN_DATA[name].aum}
+        />
+      ))}
     </group>
   )
 }
