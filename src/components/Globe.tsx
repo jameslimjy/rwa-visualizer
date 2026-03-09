@@ -6,9 +6,8 @@ import * as THREE from "three"
 import { Html } from "@react-three/drei"
 import { GLOBE_RADIUS, CHAIN_DATA, chainCentroids, getChainScale } from "./globeConstants"
 
-// Local textures in /public — no CORS issues
+// Local texture in /public — no CORS issues, loads reliably
 const EARTH_TEXTURE_URL = '/earth-color.jpg'
-const EARTH_WATER_URL = '/earth-water.png'
 
 function ChainMarker({ position, color, name, tvl }: { position: THREE.Vector3; color: string; name: string; tvl: number }) {
   const ringRef = useRef<THREE.Mesh>(null)
@@ -44,22 +43,14 @@ function ChainMarker({ position, color, name, tvl }: { position: THREE.Vector3; 
 }
 
 function GlobeInner({ chainTVL }: { chainTVL: Record<string, number> }) {
-  const [colorMap, waterMask] = useLoader(THREE.TextureLoader, [
-    EARTH_TEXTURE_URL,
-    EARTH_WATER_URL,
-  ])
+  const colorMap = useLoader(THREE.TextureLoader, EARTH_TEXTURE_URL)
 
   return (
     <>
-      {/* Main Earth sphere — fully opaque, blue-marble texture */}
+      {/* Main Earth sphere — meshBasicMaterial renders texture at full brightness, unaffected by scene lighting */}
       <mesh>
         <sphereGeometry args={[GLOBE_RADIUS, 64, 64]} />
-        <meshPhongMaterial
-          map={colorMap}
-          specularMap={waterMask}
-          specular={new THREE.Color(0x226699)}
-          shininess={40}
-        />
+        <meshBasicMaterial map={colorMap} />
       </mesh>
 
       {/* Atmosphere glow — outer ring only (BackSide) */}
