@@ -1,10 +1,15 @@
 "use client"
 
-import { useRef } from "react"
+import { useRef, Suspense } from "react"
 import { useLoader, useFrame } from "@react-three/fiber"
 import * as THREE from "three"
 import { Html } from "@react-three/drei"
 import { GLOBE_RADIUS, CHAIN_DATA, chainCentroids, getChainScale } from "./globeConstants"
+
+// three.js repo textures — reliable CDN, show real continents
+const EARTH_TEXTURE_URL = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_atmos_2048.jpg'
+const EARTH_SPECULAR_URL = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_specular_2048.jpg'
+const EARTH_NORMAL_URL = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_normal_2048.jpg'
 
 function ChainMarker({ position, color, name, tvl }: { position: THREE.Vector3; color: string; name: string; tvl: number }) {
   const ringRef = useRef<THREE.Mesh>(null)
@@ -39,44 +44,66 @@ function ChainMarker({ position, color, name, tvl }: { position: THREE.Vector3; 
   )
 }
 
-interface GlobeProps {
-  chainTVL?: Record<string, number>
-}
-
-export default function Globe({ chainTVL = {} }: GlobeProps) {
-  const earthTexture = useLoader(THREE.TextureLoader, 'https://unpkg.com/three-globe/example/img/earth-dark.jpg')
-  const bumpMap = useLoader(THREE.TextureLoader, 'https://unpkg.com/three-globe/example/img/earth-topology.png')
+function GlobeInner({ chainTVL }: { chainTVL: Record<string, number> }) {
+  const [colorMap, specularMap, normalMap] = useLoader(THREE.TextureLoader, [
+    EARTH_TEXTURE_URL,
+    EARTH_SPECULAR_URL,
+    EARTH_NORMAL_URL,
+  ])
 
   return (
-    <group>
-      {/* Earth sphere with real texture */}
+    <>
+      {/* Main Earth sphere with real land/ocean texture */}
       <mesh>
         <sphereGeometry args={[GLOBE_RADIUS, 64, 64]} />
-        <meshStandardMaterial
-          map={earthTexture}
-          bumpMap={bumpMap}
-          bumpScale={0.05}
-          roughness={0.8}
-          metalness={0.1}
+        <meshPhongMaterial
+          map={colorMap}
+          specularMap={specularMap}
+          normalMap={normalMap}
+          normalScale={new THREE.Vector2(0.05, 0.05)}
+          specular={new THREE.Color(0x333333)}
+          shininess={15}
         />
       </mesh>
 
       {/* Atmosphere glow */}
       <mesh scale={1.02}>
         <sphereGeometry args={[GLOBE_RADIUS, 32, 32]} />
-        <meshStandardMaterial color="#4488ff" transparent opacity={0.06} side={THREE.BackSide} />
+        <meshStandardMaterial color="#4488ff" transparent opacity={0.05} side={THREE.BackSide} />
       </mesh>
 
       {/* Chain markers at real geographic positions */}
-      {Object.entries(chainCentroids).map(([name, pos]) => (
-        <ChainMarker
-          key={name}
-          position={pos}
-          color={CHAIN_DATA[name].color}
-          name={name}
-          tvl={chainTVL[name] ?? CHAIN_DATA[name].aum}
-        />
-      ))}
-    </group>
+      {Object.entries(CHAIN_DATA).map(([name, data]) => {
+        const pos = chainCentroids[name]
+        if (!pos) return null
+        return (
+          <ChainMarker
+            key={name}
+            position={pos}
+            color={data.color}
+            name={name}
+            tvl={chainTVL[name] || data.aum}
+          />
+        )
+      })}
+    </>
+  )
+}
+
+interface GlobeProps {
+  chainTVL?: Record<string, number>
+}
+
+export default function Globe({ chainTVL = {} }: GlobeProps) {
+  return (
+    <Suspense fallback={
+      // Dark sphere shown while textures load
+      <mesh>
+        <sphereGeometry args={[GLOBE_RADIUS, 32, 32]} />
+        <meshStandardMaterial color="#0a1628" roughness={0.8} />
+      </mesh>
+    }>
+      <GlobeInner chainTVL={chainTVL} />
+    </Suspense>
   )
 }

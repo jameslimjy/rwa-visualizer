@@ -2,6 +2,10 @@
 
 import { Suspense, useMemo } from "react"
 import { Canvas } from "@react-three/fiber"
+import * as THREE from "three"
+
+// Enable texture caching for faster globe reloads
+THREE.Cache.enabled = true
 import { OrbitControls, Stars } from "@react-three/drei"
 import Globe from "./Globe"
 import Satellite from "./Satellite"
